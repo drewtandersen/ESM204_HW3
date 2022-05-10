@@ -1,0 +1,84 @@
+---
+title: "Distributional consequences of climate policy"
+author: "Drew Andersen"
+date: "5/9/2022"
+output: html_document
+---
+```{r setup, include = FALSE, message = FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(here)
+library(tidyverse)
+library(kableExtra)
+```
+## Introduction
+
+## Question 1
+```{r}
+#Loading in the data and baselines
+
+data <- read_csv(here("HW3_data.csv"))[,-1] #upload and drop first column
+
+#agg demand to new table
+data_agg <- data %>% 
+  mutate(Agg_Q = Q_Low_Kwh + Q_High_Kwh)
+
+#est constants
+price_e = .10 #cents/kWh
+scc = 51 # dollar price/metric_ton 1000 kg
+emis_lb_per_kwh = .85 #lbs CO2/kWh
+emis_kg_per_kwh = emis_lb_per_kwh * 0.45359237 #kgs CO2/kWh
+
+#linear regression for functions
+low_lm <- lm(Price_Cents ~ Q_Low_Kwh, data = data)
+high_lm <-lm(Price_Cents ~ Q_High_Kwh, data = data)
+
+high_dem <- function(price){  
+  demand = high_lm$coefficients[2]*price + high_lm$coefficients[1]
+}
+
+low_dem <- function(price){  
+  demand = low_lm$coefficients[2]*price + low_lm$coefficients[1]
+}
+
+agg_dem <- function(price){
+  demand = high_dem(price) + low_dem(price)
+}
+
+#linear regression for functions inverses
+low_lm <- lm(Q_Low_Kwh ~ Price_Cents, data = data)
+high_lm <-lm(Q_High_Kwh ~ Price_Cents, data = data)
+
+high_dem_inv <- function(quantity){  
+  demand = high_lm$coefficients[2]*quantity + high_lm$coefficients[1]
+}
+
+low_dem_inv <- function(quantity){  
+  demand = low_lm$coefficients[2]*quantity + low_lm$coefficients[1]
+}
+```
+
+```{r}
+mec = emis_kg_per_kwh * scc / 1000 #mec of on kWh electricity
+```
+
+```{r}
+quant_e <- agg_dem(price_e)
+supply_slope <- quant_e/price_e
+
+sup <- function(price){
+  quantity = suplly_slope * price
+}
+
+sup_inv <- function(quantity){
+  price = quantity/supply_slope
+}
+```
+
+```{r}
+data_piv <- pivot_longer(data, !Price_Cents, names_to = "Income_Group", values_to = "Q_Kwh") #pivot table to create column for districts (populated by four districts)
+
+ggplot(data = data_piv, aes(x = Q_Kwh, y = Price_Cents)) +
+  geom_point(aes(color = Income_Group))
+```
+
