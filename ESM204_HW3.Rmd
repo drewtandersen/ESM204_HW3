@@ -112,3 +112,64 @@ high_ben = (.5 * high_dem_inv(price_e) * (high_lm$coefficients[1] - price_e)) / 
 low_ben = (.5 * low_dem_inv(price_e) * (low_lm$coefficients[1] - price_e)) / 100
 ```
 
+##Q4
+```{r}
+new_q = (mec - agg_lm$coefficients[1])/(agg_lm$coefficients[2]-supply_slope)
+new_p = agg_dem(new_q)
+
+high_ben_tax = (.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100
+low_ben_tax = (.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100
+
+prod_surplus_tax = (.5*new_q*(new_p-mec))/100
+env_cost_tax = (mec * new_q)/100
+tax_rev = new_q * (mec)/100
+```
+
+##Q5
+```{r}
+#scc = 5100
+
+high_ben_tax = (.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100
+low_ben_tax = (.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100
+```
+
+```{r}
+scc = 5100
+mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+new_q = (mec - agg_lm$coefficients[1]) / (agg_lm$coefficients[2] - supply_slope)
+new_p = agg_dem(new_q)
+
+tax_rev = new_q * (mec)/100
+
+high_perc = high_dem_inv(new_p)/new_q
+low_perc = 1 - high_perc
+
+high_tax_share = tax_rev * high_perc
+low_tax_share = tax_rev * low_perc
+
+high_ben_plus_tax = ((.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100) + high_tax_share
+low_ben_plus_tax = ((.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100) + low_tax_share
+prod_surplus_tax = (.5*new_q*(new_p-mec))/100
+```
+
+a) "High" Income Consumer Benefit = `r round(high_ben_plus_tax,0)`
+b) "Low" Income Consumer Benefit = `r round(low_ben_plus_tax,0)`
+c) Producer Benefit = `r round(prod_surplus_tax,0)`
+
+```{r}
+scc = 7500
+mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+scc = 10000
+mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+scc = 15000
+mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+scc = 12500
+mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+#Need to copy and paste the code to each - make sure code is solid first
+```
+
