@@ -127,13 +127,6 @@ tax_rev = new_q * (mec)/100
 
 ##Q5
 ```{r}
-#scc = 5100
-
-high_ben_tax = (.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100
-low_ben_tax = (.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100
-```
-
-```{r}
 scc = 5100
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 
@@ -160,16 +153,27 @@ c) Producer Benefit = `r round(prod_surplus_tax,0)`
 ```{r}
 scc = 7500
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+```
 
+```{r}
 scc = 10000
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+```
 
+```{r}
 scc = 15000
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+```
 
+```{r}
 scc = 12500
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 
 #Need to copy and paste the code to each - make sure code is solid first
 ```
 
+##Q6
+```{r}
+
+
+```
