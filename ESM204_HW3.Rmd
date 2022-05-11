@@ -13,7 +13,6 @@ library(kableExtra)
 ```
 ## Introduction
 
-## Question 1
 ```{r}
 #Loading in the data and baselines
 
@@ -23,62 +22,93 @@ data <- read_csv(here("HW3_data.csv"))[,-1] #upload and drop first column
 data_agg <- data %>% 
   mutate(Agg_Q = Q_Low_Kwh + Q_High_Kwh)
 
+data_piv <- pivot_longer(data_agg, !Price_Cents, names_to = "Income_Group", values_to = "Q_Kwh") #pivot table to create column for districts (populated by four districts)
+
 #est constants
-price_e = .10 #cents/kWh
-scc = 51 # dollar price/metric_ton 1000 kg
+price_e = 10 #cents/kWh
+scc = 5100 # cent price/metric_ton 1000 kg
 emis_lb_per_kwh = .85 #lbs CO2/kWh
 emis_kg_per_kwh = emis_lb_per_kwh * 0.45359237 #kgs CO2/kWh
+```
 
+```{r}
 #linear regression for functions
-low_lm <- lm(Price_Cents ~ Q_Low_Kwh, data = data)
-high_lm <-lm(Price_Cents ~ Q_High_Kwh, data = data)
+low_lm <- lm(Price_Cents ~ Q_Low_Kwh, data = data_agg)
+high_lm <- lm(Price_Cents ~ Q_High_Kwh, data = data_agg)
+agg_lm <- lm(Price_Cents ~ Agg_Q, data = data_agg)
 
-high_dem <- function(price){  
-  demand = high_lm$coefficients[2]*price + high_lm$coefficients[1]
+high_dem <- function(quantity){  
+  demand_p = high_lm$coefficients[2]*quantity + high_lm$coefficients[1]
+  return(demand_p)
+}
+low_dem <- function(quantity){  
+  demand_p = low_lm$coefficients[2]*quantity + low_lm$coefficients[1]
+}
+agg_dem <- function(quantity){
+  demand_p = agg_lm$coefficients[2]*quantity + agg_lm$coefficients[1]
+  return(demand_p)
 }
 
-low_dem <- function(price){  
-  demand = low_lm$coefficients[2]*price + low_lm$coefficients[1]
+#linear regression for inverse functions 
+low_lm_inv<- lm(Q_Low_Kwh ~ Price_Cents, data = data_agg)
+high_lm_inv <- lm(Q_High_Kwh ~ Price_Cents, data = data_agg)
+agg_lm_inv <- lm(Agg_Q ~ Price_Cents, data = data_agg)
+
+high_dem_inv <- function(price){  
+  demand_q = high_lm_inv$coefficients[2]*price + high_lm_inv$coefficients[1]
+}
+low_dem_inv <- function(price){  
+  demand_q = low_lm_inv$coefficients[2]*price + low_lm_inv$coefficients[1]
+}
+agg_dem_inv <- function(price){  
+  demand_q = agg_lm_inv$coefficients[2]*price + agg_lm_inv$coefficients[1]
 }
 
-agg_dem <- function(price){
-  demand = high_dem(price) + low_dem(price)
+#agg_demand_slope = 1/((1/high_lm$coefficients[2]) + (1/low_lm$coefficients[2]))
+```
+
+##Q1
+```{r}
+mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+```
+
+##Q2
+```{r}
+quant_e <- agg_dem_inv(price_e)
+supply_slope <- price_e/quant_e
+
+sup <- function(quantity){
+  price = supply_slope * quantity
 }
-
-#linear regression for functions inverses
-low_lm <- lm(Q_Low_Kwh ~ Price_Cents, data = data)
-high_lm <-lm(Q_High_Kwh ~ Price_Cents, data = data)
-
-high_dem_inv <- function(quantity){  
-  demand = high_lm$coefficients[2]*quantity + high_lm$coefficients[1]
-}
-
-low_dem_inv <- function(quantity){  
-  demand = low_lm$coefficients[2]*quantity + low_lm$coefficients[1]
+sup_inv <- function(price){
+  quantity = price/supply_slope
 }
 ```
 
 ```{r}
-mec = emis_kg_per_kwh * scc / 1000 #mec of on kWh electricity
+ggplot(data = data_piv, aes(x = Q_Kwh, y = Price_Cents, color = Income_Group)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = supply_slope, color = "purple") + 
+  geom_abline(intercept = high_lm$coefficients[1], slope = high_lm$coefficients[2], color = "green") +
+  geom_abline(intercept = low_lm$coefficients[1], slope = low_lm$coefficients[2], color = "blue") +
+  geom_abline(intercept = agg_lm$coefficients[1], slope = agg_lm$coefficients[2], color = "red") +
+  theme_minimal() + 
+  ylim(0,35)
+```
+```{r}
+kink_x = (high_lm$coefficients[1]-agg_lm$coefficients[1])/(agg_lm$coefficients[2]-high_lm$coefficients[2])
+kink_y = agg_dem(kink_x)
+
+kink_triangle = integrate(high_dem, 0, kink_x)$value - integrate(agg_dem, 0, kink_x)$value
+
+con_surplus = ((.5*quant_e*(agg_lm$coefficients[1] - price_e)) + kink_triangle)/100
+prod_surplus = (.5*quant_e*price_e)/100
+env_cost = (mec * quant_e)/100 #div by hundred for dollar value
 ```
 
+##Q3
 ```{r}
-quant_e <- agg_dem(price_e)
-supply_slope <- quant_e/price_e
-
-sup <- function(price){
-  quantity = suplly_slope * price
-}
-
-sup_inv <- function(quantity){
-  price = quantity/supply_slope
-}
-```
-
-```{r}
-data_piv <- pivot_longer(data, !Price_Cents, names_to = "Income_Group", values_to = "Q_Kwh") #pivot table to create column for districts (populated by four districts)
-
-ggplot(data = data_piv, aes(x = Q_Kwh, y = Price_Cents)) +
-  geom_point(aes(color = Income_Group))
+high_ben = (.5 * high_dem_inv(price_e) * (high_lm$coefficients[1] - price_e)) / 100
+low_ben = (.5 * low_dem_inv(price_e) * (low_lm$coefficients[1] - price_e)) / 100
 ```
 
