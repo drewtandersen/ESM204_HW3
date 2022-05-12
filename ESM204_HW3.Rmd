@@ -1,8 +1,10 @@
 ---
-title: "Distributional consequences of climate policy"
+title: "HW3: Distributional consequences of climate policy"
 author: "Drew Andersen"
-date: "5/9/2022"
-output: html_document
+date: "5/12/2022"
+output: 
+  html_document:
+    code_folding: hide
 ---
 ```{r setup, include = FALSE, message = FALSE}
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
@@ -11,18 +13,22 @@ library(here)
 library(tidyverse)
 library(kableExtra)
 ```
-## Introduction
+# Introduction
+
+Use the following set of facts:
+
+• Consumers can be separated into two income groups: “high” and “low.” The data set provides price (in $) and quantity (in kWh) estimates of demand per month for the two groups. Run linear regressions (with an intercept) to estimate the demand curves for “high” and “low” income consumers.
+
+• Initially, there is no tax on electricity consumption.
+
+• The current electricity price (without any taxes) is $.10 per kWh.
+
+• The marginal cost of producing a kWh of electricity is linear and has a price-intercept of 0.
 
 ```{r}
 #Loading in the data and baselines
 
 data <- read_csv(here("HW3_data.csv"))[,-1] #upload and drop first column
-
-#agg demand to new table
-#data_agg <- data %>% 
-  #mutate(Agg_Q = Q_Low_Kwh + Q_High_Kwh)
-
-#data_piv <- pivot_longer(data_agg, !Price_Cents, names_to = "Income_Group", values_to = "Q_Kwh") #pivot table to create column for districts (populated by four districts)
 
 #est constants
 price_e = 10 #cents/kWh
@@ -69,7 +75,7 @@ agg_dem_inv <- function(price){
 ```{r}
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 ```
-The marginal externality cost per kwH of electricity is `r round(mec,2)`$cents/kwH.
+The marginal externality cost per kwH of electricity is $`r round(mec,2)`cents/kwH.
 
 ##Q2
 ```{r}
@@ -84,33 +90,31 @@ sup_inv <- function(price){
 }
 ```
 
-```{r}
+```{r, fig.align="center"}
 ggplot(data = data, aes(x = Q_Kwh, y = Price_Cents)) +
   geom_abline(intercept = high_lm$coefficients[1], slope = agg_slope, color = "black") +
   geom_abline(intercept = 0, slope = supply_slope, color = "purple") + 
   geom_abline(intercept = high_lm$coefficients[1], slope = high_lm$coefficients[2], color = "green") +
   geom_abline(intercept = low_lm$coefficients[1], slope = low_lm$coefficients[2], color = "blue") +
- # geom_abline(intercept = agg_lm$coefficients[1], slope = agg_lm$coefficients[2], color = "red") +
   theme_minimal() + 
   ylim(0,35) +
   xlim(0,800000)
 ```
+
 **Figure 1:** The demand curves for both the "Low" & "High" Groups are plotted above in blue and green, respectively. The black line represents the aggregate demand. The purple line represents the supply curve. 
 
 ```{r}
-#kink_x = (high_lm$coefficients[1]-agg_lm$coefficients[1])/(agg_lm$coefficients[2]-high_lm$coefficients[2])
-#kink_y = agg_dem(kink_x)
-
-#kink_triangle = integrate(high_dem, 0, kink_x)$value - integrate(agg_dem, 0, kink_x)$value
-
 con_surplus = (.5*quant_e*(high_lm$coefficients[1] - price_e))/100
 prod_surplus = (.5*quant_e*price_e)/100
 env_cost = (mec * quant_e)/100 #div by hundred for dollar value
 ```
+*This model yields over estimates because the kink in the aggregate demand curve was not captured in this model. 
 
-The benefit to consumers is $`r con_surplus` 
-The benefit to producers is $`r con_surplus` 
-The environmental cost is $`env_cost`
+The benefit to consumers is $`r format(round(con_surplus,0), scientific=F)` 
+
+The benefit to producers is $`r format(round(prod_surplus,0), scientific=F)` 
+
+The environmental cost is $`r format(round(env_cost,0),scientific=F)`
 
 ##Q3
 ```{r}
@@ -118,8 +122,9 @@ high_ben = (.5 * high_dem_inv(price_e) * (high_lm$coefficients[1] - price_e)) / 
 low_ben = (.5 * low_dem_inv(price_e) * (low_lm$coefficients[1] - price_e)) / 100
 ```
 
-The consumer benefit for the "High" group is `r high_ben`
-The consumer benefit for the "Low" group is `r low_ben`
+The consumer benefit for the "High" group is $`r format(round(high_ben,0), scientific=F)`
+
+The consumer benefit for the "Low" group is $`r round(low_ben,0)`
 
 ##Q4
 ```{r}
@@ -133,13 +138,13 @@ prod_surplus_tax = (.5*new_q*(new_p-mec))/100
 env_cost_tax = (mec * new_q)/100
 tax_rev = new_q * (mec)/100
 ```
-(a) Quantity (kwh) = `r new_q` kwh
-(b) Price (cents) = `r new_p` cents
-(c) "High" Group Welfare = $`r high_ben_tax`
-(d) "Low" Group Welfare = $`r low_ben_tax`
-(e) Power Supplier Surplus = $`r prod_surplus_tax`
-(f) Environmental Cost = $`r env_cost_tax`
-(g) Total tax revenue = $`r tax_rev`
+(a) Quantity (kwh) = `r format(round(new_q,0),scientific=F)` kwh
+(b) Price (cents) = `r round(new_p,1)` cents
+(c) "High" Group Welfare = $`r format(round(high_ben_tax,0),scientific=F)`
+(d) "Low" Group Welfare = $`r round(low_ben_tax,0)`
+(e) Power Supplier Surplus = $`r format(round(prod_surplus_tax,0),scientific=F)`
+(f) Environmental Cost = $`r format(round(env_cost_tax,0),scientific=F)`
+(g) Total tax revenue = $`r format(round(tax_rev,0),scientific=F)`
 
 ##Q5
 ```{r}
@@ -149,7 +154,7 @@ mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 new_q = (mec - high_lm$coefficients[1]) / (agg_slope - supply_slope)
 new_p = agg_dem(new_q)
 
-tax_rev = new_q * (mec)/100
+tax_rev = new_q * mec/100
 
 high_perc = high_dem_inv(new_p)/new_q
 low_perc = 1 - high_perc
@@ -162,31 +167,117 @@ low_ben_plus_tax = ((.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p))
 prod_surplus_tax = (.5*new_q*(new_p-mec))/100
 ```
 
-a) "High" Income Consumer Benefit = `r round(high_ben_plus_tax,0)`
-b) "Low" Income Consumer Benefit = `r round(low_ben_plus_tax,0)`
-c) Producer Benefit = `r round(prod_surplus_tax,0)`
+SCC = $51
+
+(a) "High" Income Consumer Benefit = $`r format(round(high_ben_plus_tax,0), scientific=F)`
+(b) "Low" Income Consumer Benefit = $`r format(round(low_ben_plus_tax,0), scientific=F)`
+(c) Producer Benefit = $`r format(round(prod_surplus_tax,0), scientific=F)`
 
 ```{r}
 scc = 7500
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+new_q = (mec - high_lm$coefficients[1]) / (agg_slope - supply_slope)
+new_p = agg_dem(new_q)
+
+tax_rev = new_q * mec/100
+
+high_perc = high_dem_inv(new_p)/new_q
+low_perc = 1 - high_perc
+
+high_tax_share = tax_rev * high_perc
+low_tax_share = tax_rev * low_perc
+
+high_ben_plus_tax = ((.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100) + high_tax_share
+low_ben_plus_tax = ((.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100) + low_tax_share
+prod_surplus_tax = (.5*new_q*(new_p-mec))/100
 ```
+
+SCC = $75
+
+(a) "High" Income Consumer Benefit = $`r format(round(high_ben_plus_tax,0), scientific=F)`
+(b) "Low" Income Consumer Benefit = $`r format(round(low_ben_plus_tax,0), scientific=F)`
+(c) Producer Benefit = $`r format(round(prod_surplus_tax,0), scientific=F)`
 
 ```{r}
 scc = 10000
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+new_q = (mec - high_lm$coefficients[1]) / (agg_slope - supply_slope)
+new_p = agg_dem(new_q)
+
+tax_rev = new_q * mec/100
+
+high_perc = high_dem_inv(new_p)/new_q
+low_perc = 1 - high_perc
+
+high_tax_share = tax_rev * high_perc
+low_tax_share = tax_rev * low_perc
+
+high_ben_plus_tax = ((.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100) + high_tax_share
+low_ben_plus_tax = ((.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100) + low_tax_share
+prod_surplus_tax = (.5*new_q*(new_p-mec))/100
 ```
+
+SCC = $100
+
+(a) "High" Income Consumer Benefit = $`r format(round(high_ben_plus_tax,0), scientific=F)`
+(b) "Low" Income Consumer Benefit = $`r format(round(low_ben_plus_tax,0), scientific=F)`
+(c) Producer Benefit = $`r format(round(prod_surplus_tax,0), scientific=F)`
+
 
 ```{r}
 scc = 15000
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
+
+new_q = (mec - high_lm$coefficients[1]) / (agg_slope - supply_slope)
+new_p = agg_dem(new_q)
+
+tax_rev = new_q * mec/100
+
+high_perc = high_dem_inv(new_p)/new_q
+low_perc = 1 - high_perc
+
+high_tax_share = tax_rev * high_perc
+low_tax_share = tax_rev * low_perc
+
+high_ben_plus_tax = ((.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100) + high_tax_share
+low_ben_plus_tax = ((.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100) + low_tax_share
+prod_surplus_tax = (.5*new_q*(new_p-mec))/100
 ```
+
+SCC = $125
+
+(a) "High" Income Consumer Benefit = $`r format(round(high_ben_plus_tax,0), scientific=F)`
+(b) "Low" Income Consumer Benefit = $`r format(round(low_ben_plus_tax,0), scientific=F)`
+(c) Producer Benefit = $`r format(round(prod_surplus_tax,0), scientific=F)`
+
 
 ```{r}
 scc = 12500
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 
-#Need to copy and paste the code to each - make sure code is solid first
+new_q = (mec - high_lm$coefficients[1]) / (agg_slope - supply_slope)
+new_p = agg_dem(new_q)
+
+tax_rev = new_q * mec/100
+
+high_perc = high_dem_inv(new_p)/new_q
+low_perc = 1 - high_perc
+
+high_tax_share = tax_rev * high_perc
+low_tax_share = tax_rev * low_perc
+
+high_ben_plus_tax = ((.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100) + high_tax_share
+low_ben_plus_tax = ((.5 * low_dem_inv(new_p) * (low_lm$coefficients[1] - new_p)) / 100) + low_tax_share
+prod_surplus_tax = (.5*new_q*(new_p-mec))/100
 ```
+
+SCC = $150
+
+(a) "High" Income Consumer Benefit = $`r format(round(high_ben_plus_tax,0), scientific=F)`
+(b) "Low" Income Consumer Benefit = $`r format(round(low_ben_plus_tax,0), scientific=F)`
+(c) Producer Benefit = $`r format(round(prod_surplus_tax,0), scientific=F)`
 
 ##Q6
 ```{r}
@@ -198,7 +289,7 @@ data_solar <- data %>%
 
 solar_lm <- lm(Solar_Price ~ Q_High_Kwh, data = data_solar)
 
-solar_agg_slope <- 1/(low_lm_inv$coefficients[2] + solar_lm$coefficients[2])
+solar_agg_slope <- 1/(low_lm_inv$coefficients[2] + high_lm_inv$coefficients[2])
 
 solar_demand <- function(quantity){  
   demand_p = solar_agg_slope[2]*quantity + low_lm$coefficients[1]
@@ -207,5 +298,12 @@ solar_demand <- function(quantity){
 
 new_q <- (low_lm$coefficients[1]) / (supply_slope - solar_agg_slope)
 new_p <- supply_slope*new_q
-ptest <- solar_demand(new_q)
+
+env_cost_solar = (mec * new_q)/100
+
+tax = env_cost_solar*100/(new_q)
 ```
+
+(a) Total electricity consumption: `r format(round(new_q,0), scientific=F)` kwh
+(b) Total environmental externality: $`r round(env_cost_solar,0)`
+(c) Equivalent tax: $`r round(tax,2)` cents/kwh
