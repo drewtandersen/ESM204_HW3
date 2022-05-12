@@ -19,10 +19,10 @@ library(kableExtra)
 data <- read_csv(here("HW3_data.csv"))[,-1] #upload and drop first column
 
 #agg demand to new table
-data_agg <- data %>% 
-  mutate(Agg_Q = Q_Low_Kwh + Q_High_Kwh)
+#data_agg <- data %>% 
+  #mutate(Agg_Q = Q_Low_Kwh + Q_High_Kwh)
 
-data_piv <- pivot_longer(data_agg, !Price_Cents, names_to = "Income_Group", values_to = "Q_Kwh") #pivot table to create column for districts (populated by four districts)
+#data_piv <- pivot_longer(data_agg, !Price_Cents, names_to = "Income_Group", values_to = "Q_Kwh") #pivot table to create column for districts (populated by four districts)
 
 #est constants
 price_e = 10 #cents/kWh
@@ -33,9 +33,10 @@ emis_kg_per_kwh = emis_lb_per_kwh * 0.45359237 #kgs CO2/kWh
 
 ```{r}
 #linear regression for functions
-low_lm <- lm(Price_Cents ~ Q_Low_Kwh, data = data_agg)
-high_lm <- lm(Price_Cents ~ Q_High_Kwh, data = data_agg)
-agg_lm <- lm(Price_Cents ~ Agg_Q, data = data_agg)
+low_lm <- lm(Price_Cents ~ Q_Low_Kwh, data = data)
+high_lm <- lm(Price_Cents ~ Q_High_Kwh, data = data)
+
+agg_slope <- 1/((1/low_lm$coefficients[2])+(1/high_lm$coefficients[2]))
 
 high_dem <- function(quantity){  
   demand_p = high_lm$coefficients[2]*quantity + high_lm$coefficients[1]
@@ -45,14 +46,13 @@ low_dem <- function(quantity){
   demand_p = low_lm$coefficients[2]*quantity + low_lm$coefficients[1]
 }
 agg_dem <- function(quantity){
-  demand_p = agg_lm$coefficients[2]*quantity + agg_lm$coefficients[1]
+  demand_p = agg_slope*quantity + high_lm$coefficients[1]
   return(demand_p)
 }
 
 #linear regression for inverse functions 
-low_lm_inv<- lm(Q_Low_Kwh ~ Price_Cents, data = data_agg)
-high_lm_inv <- lm(Q_High_Kwh ~ Price_Cents, data = data_agg)
-agg_lm_inv <- lm(Agg_Q ~ Price_Cents, data = data_agg)
+low_lm_inv<- lm(Q_Low_Kwh ~ Price_Cents, data = data)
+high_lm_inv <- lm(Q_High_Kwh ~ Price_Cents, data = data)
 
 high_dem_inv <- function(price){  
   demand_q = high_lm_inv$coefficients[2]*price + high_lm_inv$coefficients[1]
@@ -61,16 +61,15 @@ low_dem_inv <- function(price){
   demand_q = low_lm_inv$coefficients[2]*price + low_lm_inv$coefficients[1]
 }
 agg_dem_inv <- function(price){  
-  demand_q = agg_lm_inv$coefficients[2]*price + agg_lm_inv$coefficients[1]
+  demand_q = (price - high_lm$coefficients[1])/agg_slope
 }
-
-#agg_demand_slope = 1/((1/high_lm$coefficients[2]) + (1/low_lm$coefficients[2]))
 ```
 
 ##Q1
 ```{r}
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 ```
+The marginal externality cost per kwH of electricity is `r round(mec,2)`$cents/kwH.
 
 ##Q2
 ```{r}
@@ -86,25 +85,32 @@ sup_inv <- function(price){
 ```
 
 ```{r}
-ggplot(data = data_piv, aes(x = Q_Kwh, y = Price_Cents, color = Income_Group)) +
-  geom_point() +
+ggplot(data = data, aes(x = Q_Kwh, y = Price_Cents)) +
+  geom_abline(intercept = high_lm$coefficients[1], slope = agg_slope, color = "black") +
   geom_abline(intercept = 0, slope = supply_slope, color = "purple") + 
   geom_abline(intercept = high_lm$coefficients[1], slope = high_lm$coefficients[2], color = "green") +
   geom_abline(intercept = low_lm$coefficients[1], slope = low_lm$coefficients[2], color = "blue") +
-  geom_abline(intercept = agg_lm$coefficients[1], slope = agg_lm$coefficients[2], color = "red") +
+ # geom_abline(intercept = agg_lm$coefficients[1], slope = agg_lm$coefficients[2], color = "red") +
   theme_minimal() + 
-  ylim(0,35)
+  ylim(0,35) +
+  xlim(0,800000)
 ```
+**Figure 1:** The demand curves for both the "Low" & "High" Groups are plotted above in blue and green, respectively. The black line represents the aggregate demand. The purple line represents the supply curve. 
+
 ```{r}
-kink_x = (high_lm$coefficients[1]-agg_lm$coefficients[1])/(agg_lm$coefficients[2]-high_lm$coefficients[2])
-kink_y = agg_dem(kink_x)
+#kink_x = (high_lm$coefficients[1]-agg_lm$coefficients[1])/(agg_lm$coefficients[2]-high_lm$coefficients[2])
+#kink_y = agg_dem(kink_x)
 
-kink_triangle = integrate(high_dem, 0, kink_x)$value - integrate(agg_dem, 0, kink_x)$value
+#kink_triangle = integrate(high_dem, 0, kink_x)$value - integrate(agg_dem, 0, kink_x)$value
 
-con_surplus = ((.5*quant_e*(agg_lm$coefficients[1] - price_e)) + kink_triangle)/100
+con_surplus = (.5*quant_e*(high_lm$coefficients[1] - price_e))/100
 prod_surplus = (.5*quant_e*price_e)/100
 env_cost = (mec * quant_e)/100 #div by hundred for dollar value
 ```
+
+The benefit to consumers is $`r con_surplus` 
+The benefit to producers is $`r con_surplus` 
+The environmental cost is $`env_cost`
 
 ##Q3
 ```{r}
@@ -112,9 +118,12 @@ high_ben = (.5 * high_dem_inv(price_e) * (high_lm$coefficients[1] - price_e)) / 
 low_ben = (.5 * low_dem_inv(price_e) * (low_lm$coefficients[1] - price_e)) / 100
 ```
 
+The consumer benefit for the "High" group is `r high_ben`
+The consumer benefit for the "Low" group is `r low_ben`
+
 ##Q4
 ```{r}
-new_q = (mec - agg_lm$coefficients[1])/(agg_lm$coefficients[2]-supply_slope)
+new_q = (mec - high_lm$coefficients[1])/(agg_slope-supply_slope)
 new_p = agg_dem(new_q)
 
 high_ben_tax = (.5 * high_dem_inv(new_p) * (high_lm$coefficients[1] - new_p)) / 100
@@ -124,13 +133,20 @@ prod_surplus_tax = (.5*new_q*(new_p-mec))/100
 env_cost_tax = (mec * new_q)/100
 tax_rev = new_q * (mec)/100
 ```
+(a) Quantity (kwh) = `r new_q` kwh
+(b) Price (cents) = `r new_p` cents
+(c) "High" Group Welfare = $`r high_ben_tax`
+(d) "Low" Group Welfare = $`r low_ben_tax`
+(e) Power Supplier Surplus = $`r prod_surplus_tax`
+(f) Environmental Cost = $`r env_cost_tax`
+(g) Total tax revenue = $`r tax_rev`
 
 ##Q5
 ```{r}
 scc = 5100
 mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 
-new_q = (mec - agg_lm$coefficients[1]) / (agg_lm$coefficients[2] - supply_slope)
+new_q = (mec - high_lm$coefficients[1]) / (agg_slope - supply_slope)
 new_p = agg_dem(new_q)
 
 tax_rev = new_q * (mec)/100
@@ -174,6 +190,22 @@ mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 
 ##Q6
 ```{r}
+scc = 5100
+mec = emis_kg_per_kwh * scc * (1/1000) #mec per kWh electricity
 
+data_solar <- data %>% 
+  mutate(Solar_Price = Price_Cents/2)
 
+solar_lm <- lm(Solar_Price ~ Q_High_Kwh, data = data_solar)
+
+solar_agg_slope <- 1/(low_lm_inv$coefficients[2] + solar_lm$coefficients[2])
+
+solar_demand <- function(quantity){  
+  demand_p = solar_agg_slope[2]*quantity + low_lm$coefficients[1]
+  return(demand_p)
+}
+
+new_q <- (low_lm$coefficients[1]) / (supply_slope - solar_agg_slope)
+new_p <- supply_slope*new_q
+ptest <- solar_demand(new_q)
 ```
